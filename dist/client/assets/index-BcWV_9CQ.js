@@ -1,0 +1,1 @@
+import{j as o}from"./index-Gju96wEu.js";function r(){return o.jsxs("div",{style:{padding:"2rem",textAlign:"center"},children:[o.jsx("h1",{children:"Welcome to Portfolio"}),o.jsx("p",{children:"Your portfolio is ready to go!"})]})}export{r as component};
