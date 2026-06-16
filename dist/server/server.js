@@ -1,9 +1,5 @@
-let lastCapturedError = null;
-function consumeLastCapturedError() {
-  const error = lastCapturedError;
-  lastCapturedError = null;
-  return error;
-}
+import fs from "fs";
+import path from "path";
 function renderErrorPage() {
   return `
     <!DOCTYPE html>
@@ -70,37 +66,46 @@ function renderErrorPage() {
     </html>
   `;
 }
-let serverEntryPromise;
-async function getServerEntry() {
-  if (!serverEntryPromise) {
-    serverEntryPromise = import("./assets/server-DmFqtuUc.js").then((n) => n.s).then(
-      (m) => m.default ?? m
-    );
-  }
-  return serverEntryPromise;
-}
-function brandedErrorResponse() {
-  return new Response(renderErrorPage(), {
-    status: 500,
-    headers: { "content-type": "text/html; charset=utf-8" }
-  });
-}
-const handler = async (request, env, ctx) => {
-  const serverEntry = await getServerEntry();
+let indexHtmlCache = null;
+function getIndexHtml() {
+  if (indexHtmlCache) return indexHtmlCache;
   try {
-    return await serverEntry.fetch(request, env, ctx);
+    const indexPath = path.join(process.cwd(), "dist/client/index.html");
+    indexHtmlCache = fs.readFileSync(indexPath, "utf-8");
+    return indexHtmlCache;
   } catch (e) {
-    console.error("SSR Error:", e);
-    const lastError = consumeLastCapturedError();
-    if (lastError) {
-      console.error("Last captured error:", lastError);
+    console.error("Failed to read index.html:", e);
+    return renderErrorPage();
+  }
+}
+const server = async (req, res) => {
+  try {
+    const url = new URL(req.url, `http://${req.headers.host}`);
+    const pathname = url.pathname;
+    if (pathname.startsWith("/_")) {
+      const assetPath = path.join(process.cwd(), "dist/client", pathname);
+      try {
+        const content = fs.readFileSync(assetPath);
+        res.setHeader("cache-control", "public, max-age=31536000, immutable");
+        res.end(content);
+        return;
+      } catch {
+        res.statusCode = 404;
+        res.end("Not found");
+        return;
+      }
     }
-    return brandedErrorResponse();
+    const html = getIndexHtml();
+    res.setHeader("content-type", "text/html; charset=utf-8");
+    res.setHeader("cache-control", "no-cache, no-store, must-revalidate");
+    res.end(html);
+  } catch (error) {
+    console.error("Server error:", error);
+    res.statusCode = 500;
+    res.setHeader("content-type", "text/html; charset=utf-8");
+    res.end(renderErrorPage());
   }
 };
-const fetch = handler;
 export {
-  handler as default,
-  fetch,
-  renderErrorPage as r
+  server as default
 };
