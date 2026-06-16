@@ -83,3 +83,4 @@ function getContentType(pathname: string): string {
   if (pathname.endsWith(".woff2")) return "font/woff2";
   if (pathname.endsWith(".woff")) return "font/woff";
   return "application/octet-stream";
+}
